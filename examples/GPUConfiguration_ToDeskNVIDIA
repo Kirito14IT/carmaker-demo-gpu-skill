@@ -1,0 +1,21 @@
+#INFOFILE1.1 (UTF-8) - Do not remove this line!
+FileIdent = CarMaker-GPUConfig 1.2
+Description:
+	Force MovieNX GPUSensor through a ToDesk-safe NVIDIA PRIME offload wrapper.
+GPUList.N = 1
+GPUDevice.0.Host = localhost
+GPUDevice.0.DeviceID = 0
+GPUDevice.0.Tags = Host_GPU_0 Device_0 Default
+GPUDevice.0.UserDefined.SSHActive = 0
+GPUDevice.0.UserDefined.MovieActive = 1
+GPUDevice.0.UserDefined.SSHCmd:
+	%C
+	%H
+GPUDevice.0.UserDefined.MovieCmd:
+	/home/cqx/Downloads/CarMakerOffice-linux-15.1/scripts/movienx_gpu_todesk_wrapper.sh
+	%A
+	-headless
+	-renderapi vulkan
+	-cudadevice 0
+	-device 0
+GPUDevice.0.UserDefined.StartScriptFName =

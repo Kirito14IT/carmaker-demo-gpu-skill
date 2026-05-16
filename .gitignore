@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.*
+*.token
+*.key
+*.pem
+
+# Runtime logs and dumps
+*.log
+core
+core.*
+*.core
+
+# Temporary files
+tmp/
+*.tmp
+*.swp
+*~
+
+# Python/cache
+__pycache__/
+.pytest_cache/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
