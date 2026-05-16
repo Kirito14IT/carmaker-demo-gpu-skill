@@ -1,7 +1,7 @@
 #INFOFILE1.1 (UTF-8) - Do not remove this line!
 FileIdent = CarMaker-GPUConfig 1.2
 Description:
-	Use the ToDesk NVIDIA wrapper with early-crash retries, single-core launch affinity, headless Vulkan, and synchronous asset streaming.
+	Force MovieNX GPUSensor through a ToDesk-safe NVIDIA PRIME offload wrapper.
 GPUList.N = 1
 GPUDevice.0.Host = localhost
 GPUDevice.0.DeviceID = 0
@@ -16,6 +16,6 @@ GPUDevice.0.UserDefined.MovieCmd:
 	%A
 	-headless
 	-renderapi vulkan
+	-cudadevice 0
 	-device 0
-	-noasyncstreaming
 GPUDevice.0.UserDefined.StartScriptFName =
