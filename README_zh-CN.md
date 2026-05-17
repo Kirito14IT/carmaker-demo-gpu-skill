@@ -1,139 +1,158 @@
-# CarMaker GPU Demo Skill 与 ToDesk/NVIDIA 稳定启动指南
+# CarMaker Skills
 
 [English](README.md) · 中文文档
 
-本仓库打包了一个 Codex skill、启动脚本和排障资料，用于在 Ubuntu 远程桌面环境中运行 IPG CarMaker 15.x GPU Sensor demo，尤其是 ToDesk/GNOME + NVIDIA GPU 场景。
+本仓库是面向 Ubuntu 上 IPG CarMaker 15.x 工作流的 Codex skill 集合，目前包含两个聚焦 skill：
 
-一句话：这个 skill 是“CarMaker 15.1 在 Ubuntu + ToDesk + RTX 4090 上稳定运行 GPU Sensor demo 的启动、排障和修复手册 + 脚本包”。
+| Skill | 适用场景 |
+| --- | --- |
+| `carmaker-demo-gpu-skill` | 在 ToDesk/GNOME + NVIDIA PRIME offload 环境中启动、诊断和修复 CarMaker 15.x GPU Sensor demo。 |
+| `carmaker-ros2-bridge-skill` | 迁移、验证或运行 CarMaker 15.1 ROS2 bridge，用于发布车辆/定位/路沿数据并接收 Autoware 风格控制命令。 |
 
-当前 robust 方案已验证通过：
-
-```text
-Examples/BasicFunctions/Sensors/RadarRSI_Motorway
-Examples/BasicFunctions/Sensors/LidarRSI_Countryside
-```
-
-## 解决的问题
-
-典型报错：
-
-```text
-GPU-Sensors 128: Error: Timeout during startup.
-```
-
-在已记录的环境中，这不是 TestRun 参数没配，而是 MovieNX/GPUSensor 启动边界问题：
-
-- ToDesk 默认 OpenGL 是 Mesa llvmpipe。
-- NVIDIA PRIME offload 可以正确暴露 RTX 4090。
-- NVIDIA 580.x 驱动下 `MovieNX -listdevices` 会崩溃。
-- NVIDIA 565.77 可以正常枚举 GPU。
-- MovieNX GPUSensor 仍可能在启动早期 `SIGSEGV` 或 `double free`。
-- robust wrapper 通过降低启动并发和自动重试早期崩溃来稳定启动。
-
-## 仓库内容
+## 仓库结构
 
 ```text
 carmaker-demo-gpu-skill/
   SKILL.md
   references/carmaker15_todesk_gpu.md
   scripts/check_carmaker_gpu_env.sh
+carmaker-ros2-bridge-skill/
+  SKILL.md
+  references/carmaker15_ros2_bridge.md
+  scripts/check_carmaker_ros2_bridge.sh
 docs/
+  CarMaker15_ToDesk_GPU_Demo_启动与修复记录.md
+  CarMaker15_ROS2Bridge_验证与使用说明.md
   carmaker15_todesk_gpu_robust.md
 examples/
-  start_carmaker15_gpu_todesk.sh
-  movienx_gpu_todesk_wrapper.sh
   GPUConfiguration_ToDeskNVIDIA_Robust
+  movienx_gpu_todesk_wrapper.sh
+  start_carmaker15_gpu_todesk.sh
+  carmaker_ros2_probe.cpp
 dist/
   carmaker-demo-gpu-skill.skill
+  carmaker-ros2-bridge-skill.skill
 ```
 
-## 快速启动
+## Skill：`carmaker-demo-gpu-skill`
 
-在 CarMaker 安装工作目录执行：
+用途：作为 CarMaker 15.1 在 Ubuntu + ToDesk + NVIDIA GPU 上稳定运行 GPU Sensor demo 的启动、排障和修复手册 + 脚本包。
+
+已验证 TestRun：
+
+```text
+Examples/BasicFunctions/Sensors/RadarRSI_Motorway
+Examples/BasicFunctions/Sensors/LidarRSI_Countryside
+```
+
+该 skill 重点处理的典型错误：
+
+```text
+GPU-Sensors 128: Error: Timeout during startup.
+```
+
+快速启动：
 
 ```bash
 cd /home/cqx/Downloads/CarMakerOffice-linux-15.1
 ./start_carmaker15_gpu_todesk.sh
 ```
 
-然后打开 GPU Sensor TestRun，点击 `Start`。
-
-成功标志：
-
-- CarMaker Office 显示 `Status: Running`，或运行完成后回到 `Idle` 且 Time/Distance 非 0。
-- `/tmp/movienx_gpu_todesk_wrapper.log` 包含 `GPUSensor Server running`、`STATUS-started`、`APO: Successfully connected`。
-
-## robust wrapper 重点
-
-日志默认开启，并可通过环境变量调整：
-
-```bash
-CM_MOVIENX_LOG=/tmp/custom_movienx.log ./start_carmaker15_gpu_todesk.sh
-CM_MOVIENX_LOG=off ./start_carmaker15_gpu_todesk.sh
-CM_MOVIENX_RETRIES=10 ./start_carmaker15_gpu_todesk.sh
-CM_MOVIENX_CPUSET=0-3 ./start_carmaker15_gpu_todesk.sh
-CM_MOVIENX_CPUSET=none ./start_carmaker15_gpu_todesk.sh
-CM_MOVIENX_CLEAN_CACHE=0 ./start_carmaker15_gpu_todesk.sh
-```
-
-默认行为：
-
-- 导出 NVIDIA PRIME offload 环境变量。
-- 使用 `taskset -c 0` 启动 MovieNX GPUSensor。
-- GPU 配置使用 `-headless -renderapi vulkan -device 0 -noasyncstreaming`。
-- 对退出码 `134`/`139` 的早期崩溃最多重试 6 次。
-
-实时排障：
-
-```bash
-tail -f /tmp/movienx_gpu_todesk_wrapper.log
-```
-
-## 环境检查
-
-运行只读检查脚本：
+只读检查：
 
 ```bash
 carmaker-demo-gpu-skill/scripts/check_carmaker_gpu_env.sh
 ```
 
-该脚本检查：
+成功标志：
 
-- `nvidia-smi`
-- 默认 `glxinfo -B`
-- NVIDIA PRIME offload `glxinfo -B`
-- `MovieNX -listdevices`
-- CarMaker 项目 GPU 配置
-- 可选 MovieNX wrapper 日志尾部
+- CarMaker Office 显示 `Status: Running`，或运行完成后 Time/Distance 非 0。
+- `/tmp/movienx_gpu_todesk_wrapper.log` 包含 `GPUSensor Server running`、`STATUS-started`、`APO: Successfully connected`。
 
-## 后续可测试的 GPU demo
+## Skill：`carmaker-ros2-bridge-skill`
 
-建议顺序：
+用途：记录 `/home/cqx/CM_Projects/cm151_gpu_demo` 中 CarMaker 15.1 ROS2 bridge 的迁移、验证和运行方法。
 
-1. `Examples/BasicFunctions/Sensors/RadarRSI_Motorway`
-2. `Examples/BasicFunctions/Sensors/LidarRSI_Countryside`
-3. `Examples/BasicFunctions/Sensors/MultiRSI`
-4. `Examples/BasicFunctions/Sensors/USonicRSI_Parking`
-5. `Examples/BasicFunctions/Sensors/USonicRSI_ConfigurableFrame`
-6. `Examples/BasicFunctions/Sensors/USonicRSI_ComparisonDynamicRayPattern`
-7. `Examples/BasicFunctions/MovieNX/WeatherRain_SensorCamera_NardoHandlingTrack`
+已验证 bridge topic 契约：
 
-## 手动安装 Codex skill
+| 方向 | Topic | 类型 |
+| --- | --- | --- |
+| CarMaker -> ROS2 | `/chcnav/devpvt` | `msg_interfaces/msg/Hcinspvatzcb` |
+| CarMaker -> ROS2 | `/perception/curb_boundaries` | `msg_interfaces/msg/CurbBoundaries` |
+| CarMaker -> ROS2 | `/perception/curb_diagnostics` | `msg_interfaces/msg/CurbDiagnostics` |
+| CarMaker -> ROS2 | `/control/runtime_log_stop` | `nav_msgs/msg/Odometry` |
+| ROS2 -> CarMaker | `/control/control_cmd` | `autoware_control_msgs/msg/Control` |
 
-将 skill 目录复制到 Codex skills 目录：
+只读结构检查：
+
+```bash
+carmaker-ros2-bridge-skill/scripts/check_carmaker_ros2_bridge.sh
+```
+
+可选 20s CLI 冒烟测试：
+
+```bash
+carmaker-ros2-bridge-skill/scripts/check_carmaker_ros2_bridge.sh --run-smoke
+```
+
+手动验收证据：
+
+```bash
+cd /home/cqx/CM_Projects/cm151_gpu_demo
+"./src/CarMaker.linux64" -help | head -5
+ldd "./src/CarMaker.linux64" | rg "not found"
+readelf -d "./src/CarMaker.linux64" | rg "RUNPATH|RPATH"
+```
+
+关键成功标志：
+
+- `APPLICATION ... (linux64-15.1)`。
+- `ldd` 没有 `not found` 输出。
+- CarMaker 日志出现 `ROS2 bridge initialized for CarMaker 15.1`。
+- `/tmp/carmaker_ros2_probe` 输出 `chc_count > 0` 且 `curb_count > 0`。
+- CarMaker 日志出现 `ROS2 control: target=... steer_tire=...`。
+
+固定 probe 控制命令导致的 `Vehicle leaves road` 不是 bridge 失败；它说明控制命令已经影响车辆运动。
+
+## 手动安装 skill
+
+将一个或两个 skill 目录复制到 Codex skills 目录：
 
 ```bash
 mkdir -p "$HOME/.codex/skills"
 cp -a carmaker-demo-gpu-skill "$HOME/.codex/skills/"
+cp -a carmaker-ros2-bridge-skill "$HOME/.codex/skills/"
 ```
 
-如果 Codex 环境支持 packaged skill，也可以使用 `dist/carmaker-demo-gpu-skill.skill`。
+如果 Codex 环境支持 packaged skill，也可以使用：
+
+```text
+dist/carmaker-demo-gpu-skill.skill
+dist/carmaker-ros2-bridge-skill.skill
+```
+
+## 维护者验证
+
+运行 skill 结构检查：
+
+```bash
+python3 "$HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py" carmaker-demo-gpu-skill
+python3 "$HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py" carmaker-ros2-bridge-skill
+```
+
+检查打包内容：
+
+```bash
+unzip -l dist/carmaker-demo-gpu-skill.skill
+unzip -l dist/carmaker-ros2-bridge-skill.skill
+```
 
 ## 注意事项
 
-- 不要提交凭据、`.env` 文件、日志或 core dump。
+- 不要提交凭据、`.env` 文件、日志、core dump、私有 license 或本机密钥。
 - 非 GPU 的 CarMaker demo 能运行，不代表 MovieNX GPUSensor 已经可用。
-- 不建议在正在使用 ToDesk 的机器上做临时 Xorg 实验，可能断开远程桌面。
+- ROS2 bridge 不代表 Apollo 可直接连接；Apollo/Cyber RT 需要适配层。
+- 项目运行日志保留在本地项目目录或 `/tmp`，不要放入本仓库。
 
 ## License
 
